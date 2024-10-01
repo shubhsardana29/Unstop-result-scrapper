@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Full API Response - Leaderboard {{ leaderboard_id }}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            background-color: #f4f4f4;
+        }
+        h1 {
+            color: #333;
+        }
+        #jsonData {
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            padding: 20px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Full API Response - Leaderboard {{ leaderboard_id }}</h1>
+    <div id="jsonData">Loading...</div>
+
+    <script>
+        function fetchData() {
+            fetch('/full_api/{{ leaderboard_id }}')
+                .then(response => {
+                    if (!response.ok) {
+                        if (response.status === 202) {
+                            throw new Error('Data is still being fetched. Retrying in 5 seconds...');
+                        }
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    document.getElementById('jsonData').textContent = JSON.stringify(data, null, 2);
+                })
+                .catch(error => {
+                    document.getElementById('jsonData').innerHTML = '<p class="error">Error: ' + error.message + '</p>';
+                    if (error.message.includes('Retrying')) {
+                        setTimeout(fetchData, 5000);  // Retry after 5 seconds
+                    }
+                });
+        }
+
+        fetchData();
+    </script>
+</body>
+</html>

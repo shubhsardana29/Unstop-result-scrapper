@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leaderboard Scraper</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        form {
+            margin-bottom: 20px;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin-bottom: 20px;
+        }
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            display: none;
+            margin-left: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <h1>Leaderboard Scraper</h1>
+    <form method="POST">
+        <input type="text" name="leaderboard_id" placeholder="Enter Leaderboard ID" required>
+        <button type="submit">Add Leaderboard</button>
+    </form>
+    <h2>Leaderboards:</h2>
+    <ul>
+        {% for id, total_pages in leaderboards.items() %}
+            <li>
+                Leaderboard ID: {{ id }} (Total Pages: {{ total_pages }})
+                <button onclick="fetchCombinedResults('{{ id }}')">View Combined Results</button>
+                <button id="full-api-{{ id }}" onclick="viewFullAPI('{{ id }}')" class="disabled" disabled>View Full API Response</button>
+                <div class="loader" id="loader-{{ id }}"></div>
+                <div id="progress-{{ id }}"></div>
+                <div id="result-{{ id }}"></div>
+            </li>
+        {% endfor %}
+    </ul>
+
+    <script>
+        function fetchCombinedResults(leaderboardId) {
+            const loader = document.getElementById(`loader-${leaderboardId}`);
+            const progressDiv = document.getElementById(`progress-${leaderboardId}`);
+            const resultDiv = document.getElementById(`result-${leaderboardId}`);
+            loader.style.display = 'inline-block';
+            progressDiv.textContent = 'Fetching results...';
+            resultDiv.innerHTML = '';
+
+            fetch(`/combined/${leaderboardId}`)
+                .then(response => response.json())
+                .then(data => {
+                    loader.style.display = 'none';
+                    progressDiv.textContent = 'Completed!';
+                    
+                    // Display summary
+                    resultDiv.innerHTML = `<h3>Results Summary:</h3>
+                                           <p>Total entries: ${data.length}</p>`;
+                    
+                    // Display top 10 entries
+                    if (data.length > 0) {
+                        let tableHTML = `<h4>Top 10 Entries:</h4>
+                                         <table border="1">
+                                         <tr><th>Rank</th><th>Team Name</th><th>Score</th></tr>`;
+                        
+                        for (let i = 0; i < Math.min(10, data.length); i++) {
+                            const entry = data[i];
+                            tableHTML += `<tr>
+                                            <td>${entry.rank}</td>
+                                            <td>${entry.team.team_name}</td>
+                                            <td>${entry.score}</td>
+                                          </tr>`;
+                        }
+                        tableHTML += '</table>';
+                        resultDiv.innerHTML += tableHTML;
+                    }
+                    
+                    console.log(data); // Full data in console for debugging
+                })
+                .catch(error => {
+                    loader.style.display = 'none';
+                    progressDiv.textContent = 'Error occurred!';
+                    console.error('Error:', error);
+                });
+
+            updateProgress(leaderboardId);
+        }
+
+        function updateProgress(leaderboardId) {
+            const progressDiv = document.getElementById(`progress-${leaderboardId}`);
+            const fullAPIButton = document.getElementById(`full-api-${leaderboardId}`);
+            const intervalId = setInterval(() => {
+                fetch(`/progress/${leaderboardId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const progress = data.progress.toFixed(2);
+                        const totalPages = data.total_pages;
+                        const fetchedPages = Math.round(progress * totalPages / 100);
+                        const estimatedTimeRemaining = ((totalPages - fetchedPages) * 0.2 / 60).toFixed(2);
+                        progressDiv.textContent = `Progress: ${progress}% (${fetchedPages}/${totalPages} pages). Estimated time remaining: ${estimatedTimeRemaining} minutes`;
+                        
+                        if (progress >= 100) {
+                            clearInterval(intervalId);
+                            fullAPIButton.classList.remove('disabled');
+                            fullAPIButton.disabled = false;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        clearInterval(intervalId);
+                    });
+            }, 1000);
+        }
+
+        function viewFullAPI(leaderboardId) {
+            window.open(`/view_full_api/${leaderboardId}`, '_blank');
+        }
+    </script>
+</body>
+</html>
