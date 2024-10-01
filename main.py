@@ -1,9 +1,11 @@
 import requests
 import time
-from flask import Flask, jsonify, request, render_template, redirect, url_for
+from flask import Flask, jsonify, request, render_template, redirect, url_for , flash , session , get_flashed_messages
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import math
+import re
+
 
 class LeaderboardScraper:
     def __init__(self, base_url, leaderboard_id, per_page=30):
@@ -72,6 +74,7 @@ class LeaderboardScraper:
         return all_data
 
 app = Flask(__name__)
+app.secret_key = os.urandom(24)
 
 leaderboards = {}  # Dictionary to store leaderboard IDs and their total pages
 scraper_instances = {}
@@ -79,15 +82,30 @@ scraper_instances = {}
 @app.route('/', methods=['GET', 'POST'])
 def home():
     if request.method == 'POST':
-        leaderboard_id = request.form.get('leaderboard_id')
-        if leaderboard_id and leaderboard_id not in leaderboards:
-            base_url = 'https://unstop.com/api/public/live-leaderboard'
-            scraper = LeaderboardScraper(base_url, leaderboard_id)
-            leaderboards[leaderboard_id] = scraper.total_pages
-            scraper_instances[leaderboard_id] = scraper
+        # Clear existing flash messages
+        session.pop('_flashes', None)
 
+        leaderboard_id = request.form.get('leaderboard_id')
+        if re.match(r'^\d{5}$', leaderboard_id):
+            if leaderboard_id not in leaderboards:
+                base_url = 'https://unstop.com/api/public/live-leaderboard'
+                scraper = LeaderboardScraper(base_url, leaderboard_id)
+                leaderboards[leaderboard_id] = scraper.total_pages
+                scraper_instances[leaderboard_id] = scraper
+                flash('Leaderboard added successfully!', 'success')
+            else:
+                flash('Leaderboard ID already exists!', 'warning')
+        else:
+            flash('Invalid input. Please enter exactly 5 digits.', 'error')
         return redirect(url_for('home'))
     return render_template('index.html', leaderboards=leaderboards)
+
+@app.route('/clear_leaderboards', methods=['POST'])
+def clear_leaderboards():
+    leaderboards.clear()
+    scraper_instances.clear()
+    flash('All leaderboards have been cleared.', 'success')
+    return redirect(url_for('home'))
 
 @app.route('/combined/<leaderboard_id>')
 def combined_results(leaderboard_id):

@@ -39,14 +39,40 @@
             opacity: 0.6;
             cursor: not-allowed;
         }
+        .flash {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .success { background-color: #dff0d8; color: #3c763d; }
+        .error { background-color: #f2dede; color: #a94442; }
+        .warning { background-color: #fcf8e3; color: #8a6d3b; }
     </style>
 </head>
 <body>
     <h1>Leaderboard Scraper</h1>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}{% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="flash {{ category }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
     <form method="POST">
-        <input type="text" name="leaderboard_id" placeholder="Enter Leaderboard ID" required>
+        <input type="text" name="leaderboard_id" placeholder="Enter 5-digit Leaderboard ID" required pattern="\d{5}" title="Please enter exactly 5 digits">
         <button type="submit">Add Leaderboard</button>
     </form>
+
+    <form method="POST" action="{{ url_for('clear_leaderboards') }}">
+        <button type="submit" onclick="return confirm('Are you sure you want to clear all leaderboards?');">Clear All Leaderboards</button>
+    </form>
+
     <h2>Leaderboards:</h2>
     <ul>
         {% for id, total_pages in leaderboards.items() %}
@@ -138,6 +164,18 @@
         function viewFullAPI(leaderboardId) {
             window.open(`/view_full_api/${leaderboardId}`, '_blank');
         }
+
+        document.getElementById('leaderboardForm').addEventListener('submit', function(e) {
+            var submitButton = document.getElementById('submitButton');
+            if (submitButton.disabled) {
+                e.preventDefault();
+            } else {
+                submitButton.disabled = true;
+                setTimeout(function() {
+                    submitButton.disabled = false;
+                }, 2000);  // Re-enable after 2 seconds
+            }
+        });
     </script>
 </body>
 </html>
